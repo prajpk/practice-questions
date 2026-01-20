@@ -55,7 +55,7 @@
 						"referenceName": "adls_parquet",
 						"type": "DatasetReference",
 						"parameters": {
-							"folderPath": "AgentData"
+							"folderPath": "BranchData"
 						}
 					}
 				]
