@@ -95,7 +95,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT *\nFROM dbo.Agent\nWHERE create_timestamp BETWEEN '@{activity('Lookup Last Copied till').output.firstRow.Date}' and '@{activity('Lookup Max Date in SQL').output.firstRow.Max_date}'",
+							"value": "SELECT *\nFROM dbo.Agent\nWHERE create_timestamp BETWEEN '@{activity('Lookup Last Copied till').output.firstRow.Max_Date}' and '@{activity('Lookup Max Date in SQL').output.firstRow.Max_date}'",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
