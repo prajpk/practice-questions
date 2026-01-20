@@ -5,12 +5,20 @@
 			"referenceName": "ADLS_LS",
 			"type": "LinkedServiceReference"
 		},
+		"parameters": {
+			"folderPath": {
+				"type": "string"
+			}
+		},
 		"annotations": [],
 		"type": "Parquet",
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": "BranchData",
+				"folderPath": {
+					"value": "@dataset().folderPath",
+					"type": "Expression"
+				},
 				"fileSystem": "landing"
 			},
 			"compressionCodec": "snappy"

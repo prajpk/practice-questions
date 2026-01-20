@@ -73,8 +73,7 @@
 				}
 			},
 			{
-				"name": "Copy Agent data from sql to adls parquet",
-				"description": "batch load",
+				"name": "Copy data1",
 				"type": "Copy",
 				"dependsOn": [
 					{
@@ -96,7 +95,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "@concat('SELECT * FROM dbo.Agent WHERE create_timestamp BETWEEN ', '''', activity('Lookup Last Copied till').output.firstRow.Date, '''', ' and ', '''', activity('Lookup Max Date in SQL').output.firstRow.Max_Date, '''')",
+							"value": "SELECT *\nFROM dbo.Agent\nWHERE create_timestamp BETWEEN '@{activity('Lookup Last Copied till').output.firstRow.Date}' and '@{activity('Lookup Max Date in SQL').output.firstRow.Max_date}'",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -126,15 +125,89 @@
 						"referenceName": "SQL_DS",
 						"type": "DatasetReference",
 						"parameters": {
-							"schemaName": "dbo",
-							"tableName": "Branch"
+							"schemaName": "1",
+							"tableName": "1"
 						}
 					}
 				],
 				"outputs": [
 					{
 						"referenceName": "adls_parquet",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "AgentData"
+						}
+					}
+				]
+			},
+			{
+				"name": "Copy data1_copy1",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy data1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT '@{activity('Lookup Max Date in SQL').output.firstRow.Max_date}' as max_date",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "SQL_DS",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": "1",
+							"tableName": "1"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "adls_csv_ds",
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "AgentData",
+							"fileName": "HighWatermark.txt"
+						}
 					}
 				]
 			}

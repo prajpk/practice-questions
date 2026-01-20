@@ -53,7 +53,10 @@
 				"outputs": [
 					{
 						"referenceName": "adls_parquet",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "AgentData"
+						}
 					}
 				]
 			}
