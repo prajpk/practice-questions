@@ -3,7 +3,8 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Copy data1",
+				"name": "Copy Branch data from sql to adls parquet",
+				"description": "batch load",
 				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
