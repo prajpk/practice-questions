@@ -1,0 +1,231 @@
+{
+	"name": "Ingest_Claim_Data_Incremental_Load_copy",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup Last Copied till",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "adls_csv_ds",
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "ClaimData",
+							"fileName": "HighWatermark.txt"
+						}
+					}
+				}
+			},
+			{
+				"name": "Lookup Max Date in SQL",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Lookup Last Copied till",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select MAX(LastUpdatedTimeStamp) MAX_DATE from [dbo].[Claim]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "SQL_DS",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": "-",
+							"tableName": "-"
+						}
+					}
+				}
+			},
+			{
+				"name": "Copy data from sql to adls parquet",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Lookup Max Date in SQL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT *\nFROM dbo.Claim \nWHERE LastUpdatedTimeStamp > '@{activity('Lookup Last Copied till').output.firstRow.Max_Date}' and LastUpdatedTimeStamp <= '@{activity('Lookup Max Date in SQL').output.firstRow.Max_date}'",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "SQL_DS",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": "1",
+							"tableName": "1"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "adls_parquet",
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "ClaimData"
+						}
+					}
+				]
+			},
+			{
+				"name": "Update HighWatermark",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy data from sql to adls parquet",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT '@{activity('Lookup Max Date in SQL').output.firstRow.Max_date}' as max_date",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "max_date",
+									"type": "String",
+									"physicalType": "varchar"
+								},
+								"sink": {
+									"name": "max_date",
+									"type": "String",
+									"physicalType": "String"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "SQL_DS",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": "1",
+							"tableName": "1"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "adls_csv_ds",
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "ClaimData",
+							"fileName": "HighWatermark.txt"
+						}
+					}
+				]
+			}
+		],
+		"annotations": []
+	}
+}
